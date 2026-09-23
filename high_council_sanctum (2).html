@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>High Council Sanctum</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            obsidian: {
+              900: '#07080A',
+              800: '#0A0B0E',
+              700: '#12141C',
+              600: '#1A1D28',
+              500: '#252938'
+            },
+            gold: {
+              300: '#F3E5AB',
+              400: '#E6CA65',
+              500: '#D4AF37',
+              600: '#AA820A'
+            },
+            cyanGlow: {
+              400: '#38BDF8',
+              500: '#00F0FF'
+            },
+            blood: {
+              400: '#F87171',
+              500: '#EF4444',
+              900: '#7F1D1D'
+            }
+          },
+          fontFamily: {
+            serif: ['Cinzel', 'Georgia', 'serif'],
+            sans: ['Inter', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts: Cinzel & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    body {
+      background-color: #07080A;
+      color: #E2E8F0;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+
+    .font-cinzel { font-family: 'Cinzel', serif; }
+
+    .glass-panel {
+      background: rgba(18, 20, 28, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(212, 175, 55, 0.15);
+    }
+
+    .glass-panel-glow {
+      background: rgba(18, 20, 28, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      box-shadow: 0 0 25px rgba(212, 175, 55, 0.08);
+    }
+
+    .gold-gradient-text {
+      background: linear-gradient(135deg, #FFF0B3 0%, #D4AF37 50%, #997A15 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .blood-gradient-text {
+      background: linear-gradient(135deg, #FECACA 0%, #EF4444 50%, #991B1B 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0A0B0E; }
+    ::-webkit-scrollbar-thumb { background: #252938; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #D4AF37; }
+
+    .bg-ambient-orb {
+      position: fixed;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      filter: blur(140px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.15;
+    }
+
+    .animate-pulse-slow {
+      animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.15; }
+      50% { opacity: 0.28; }
+    }
+
+    /* Swipe & Context Menu Animations */
+    .swipe-reply-icon {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .chat-message-container {
+      transition: transform 0.2s ease-out;
+      touch-action: pan-y;
+      will-change: transform;
+    }
+    .msg-context-menu {
+      animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      transform-origin: top left;
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body class="min-h-screen antialiased flex flex-col justify-between selection:bg-gold-500 selection:text-black">
+
+  <!-- Ambient Light Orbs -->
+  <div class="bg-ambient-orb top-[-100px] left-[-100px] bg-gold-500 animate-pulse-slow"></div>
+  <div class="bg-ambient-orb bottom-[-100px] right-[-100px] bg-blood-900 animate-pulse-slow"></div>
+
+  <!-- Toast Notification System -->
+  <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-3 pointer-events-none"></div>
+
+  <!-- Modal Overlay Container -->
+  <div id="modal-container" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md hidden">
+    <div id="modal-content" class="glass-panel-glow w-full max-w-md p-6 rounded-2xl relative border border-gold-500/30 text-center space-y-4">
+      <h3 id="modal-title" class="font-cinzel text-lg font-bold text-gold-400 uppercase tracking-wider"></h3>
+      <p id="modal-body" class="text-xs text-slate-300 leading-relaxed"></p>
+      <button onclick="closeModal()" class="w-full py-2.5 rounded-xl bg-gold-500 text-obsidian-900 font-bold text-xs uppercase tracking-wider hover:brightness-110 transition-all">
+        Acknowledge
+      </button>
+    </div>
+  </div>
+
+  <!-- Context Menu for Messages (Emperor Only) -->
+  <div id="msg-context-menu" class="fixed z-[60] hidden bg-obsidian-900 border border-slate-700/80 rounded-xl shadow-2xl msg-context-menu overflow-hidden min-w-[160px]">
+    <div class="flex flex-col py-1">
+      <button id="menu-action-pin" onclick="actionPinMessage()" class="px-4 py-2.5 text-xs text-left text-slate-200 hover:bg-slate-800 flex items-center gap-3">
+        <i class="fa-solid fa-thumbtack text-gold-400 w-4"></i> <span id="pin-action-text">Pin Message</span>
+      </button>
+      <button id="menu-action-delete" onclick="actionDeleteMessage()" class="px-4 py-2.5 text-xs text-left text-red-400 hover:bg-red-900/30 flex items-center gap-3">
+        <i class="fa-solid fa-trash text-red-500 w-4"></i> Delete
+      </button>
+    </div>
+  </div>
+
+  <!-- Public Profile Modal with Silence Actions -->
+  <div id="public-profile-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md hidden">
+    <div class="glass-panel-glow w-full max-w-sm p-8 rounded-2xl relative border border-gold-500/30 text-center space-y-4">
+      <button onclick="closePublicProfile()" class="absolute top-4 right-4 text-slate-400 hover:text-red-400 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800/50">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="relative inline-block">
+        <img id="pub-profile-avatar" src="" class="w-24 h-24 mx-auto rounded-full object-cover border-2 border-gold-500 shadow-[0_0_20px_rgba(212,175,55,0.2)]">
+      </div>
+      
+      <div>
+        <h3 id="pub-profile-username" class="font-cinzel text-2xl font-bold text-slate-100"></h3>
+        <span id="pub-profile-role" class="inline-block px-3 py-1 mt-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gold-500/20 text-gold-400 border border-gold-500/40"></span>
+      </div>
+
+      <p id="pub-profile-tagline" class="text-xs text-slate-300 italic py-4 border-y border-slate-800/80"></p>
+
+      <!-- Silence Actions (Only visible for Monarchs targeting lower ranks) -->
+      <div id="silence-action-container" class="hidden flex flex-col gap-2 pt-2">
+         <p class="text-[10px] uppercase text-blood-400 font-bold tracking-widest"><i class="fa-solid fa-gavel mr-1"></i> Monarch Decree</p>
+         <div class="flex items-center gap-2">
+           <select id="silence-duration" class="flex-1 bg-obsidian-900 border border-blood-900/50 rounded-lg px-2 py-2 text-xs text-slate-200 focus:border-blood-500 outline-none">
+             <option value="10">Silence for 10 Seconds</option>
+             <option value="60">Silence for 1 Minute</option>
+             <option value="300">Silence for 5 Minutes</option>
+             <option value="600">Silence for 10 Minutes</option>
+           </select>
+           <button onclick="applySilenceToUser()" class="px-4 py-2 rounded-lg bg-blood-900/40 hover:bg-blood-500 text-white font-bold text-xs uppercase tracking-wider transition-all border border-blood-500/30">
+             Enforce
+           </button>
+         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGIN SCREEN SECTION -->
+  <div id="login-view" class="relative z-10 flex min-h-screen items-center justify-center p-4">
+    <div class="w-full max-w-md glass-panel-glow p-8 rounded-2xl shadow-2xl space-y-8 border border-gold-500/20">
+      
+      <!-- Emblem & Title -->
+      <div class="text-center space-y-3">
+        <div class="mx-auto w-20 h-20 rounded-full border-2 border-gold-500/50 flex items-center justify-center bg-obsidian-900/80 shadow-[0_0_30px_rgba(212,175,55,0.2)]">
+          <i class="fa-solid fa-crown text-3xl text-gold-500 animate-pulse"></i>
+        </div>
+        <h1 class="font-cinzel text-2xl font-bold tracking-widest gold-gradient-text uppercase">
+          High Council
+        </h1>
+        <p class="text-xs uppercase tracking-[0.3em] text-slate-400 font-medium">
+          Supreme Authority
+        </p>
+      </div>
+
+      <form id="login-form" class="space-y-5" onsubmit="handleLogin(event)">
+        <div>
+          <label class="block text-xs uppercase tracking-wider text-slate-300 font-semibold mb-2">
+            Council Identifier
+          </label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gold-500/70">
+              <i class="fa-solid fa-user-shield text-sm"></i>
+            </span>
+            <input type="text" id="login-username" required placeholder="Enter designation" class="w-full bg-obsidian-900/90 border border-slate-700/80 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-all">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs uppercase tracking-wider text-slate-300 font-semibold mb-2">
+            Sanctum Key
+          </label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gold-500/70">
+              <i class="fa-solid fa-key text-sm"></i>
+            </span>
+            <input type="password" id="login-password" required placeholder="••••••••••••" class="w-full bg-obsidian-900/90 border border-slate-700/80 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-all">
+          </div>
+        </div>
+
+        <div id="login-error" class="text-xs text-red-400 bg-red-950/40 border border-red-500/30 p-3 rounded-xl hidden flex items-center gap-2">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span id="login-error-text">Authentication failed.</span>
+        </div>
+
+        <button type="submit" class="w-full py-3.5 px-4 rounded-xl font-cinzel font-semibold tracking-wider text-sm bg-gradient-to-r from-gold-600 via-gold-500 to-gold-600 text-obsidian-900 hover:brightness-110 active:scale-[0.99] transition-all duration-200 shadow-[0_0_20px_rgba(212,175,55,0.3)] flex items-center justify-center gap-2">
+          <span>Enter Sanctum</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- MAIN APP SCREEN -->
+  <div id="app-view" class="relative z-10 flex min-h-screen w-full hidden">
+    
+    <!-- SIDEBAR NAVIGATION -->
+    <aside id="sidebar" class="w-64 bg-obsidian-900/95 border-r border-slate-800/80 flex flex-col justify-between fixed inset-y-0 left-0 z-40 transition-transform duration-300 md:translate-x-0 -translate-x-full">
+      <div>
+        <div class="h-20 border-b border-slate-800/80 flex items-center gap-3 px-6">
+          <div class="w-10 h-10 rounded-lg border border-gold-500/40 bg-obsidian-800 flex items-center justify-center text-gold-500 shadow-[0_0_15px_rgba(212,175,55,0.2)]">
+            <i class="fa-solid fa-chess-king text-lg"></i>
+          </div>
+          <div>
+            <h2 class="font-cinzel text-sm font-bold tracking-wider gold-gradient-text uppercase">High Council</h2>
+            <p class="text-[10px] tracking-widest text-slate-500 uppercase">Sanctum</p>
+          </div>
+        </div>
+
+        <nav class="p-4 space-y-1.5">
+          <button onclick="switchTab('chat')" id="nav-chat" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-medium uppercase tracking-wider text-slate-300 hover:text-gold-400 hover:bg-slate-800/50 transition-all">
+            <i class="fa-solid fa-comments text-base w-5 text-center text-gold-500"></i>
+            <span>Council Chat</span>
+          </button>
+
+          <button onclick="switchTab('requests')" id="nav-requests" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-medium uppercase tracking-wider text-slate-300 hover:text-gold-400 hover:bg-slate-800/50 transition-all">
+            <i class="fa-solid fa-scroll text-base w-5 text-center text-cyanGlow-400"></i>
+            <span>Decrees & Orders</span>
+          </button>
+
+          <button onclick="switchTab('directory')" id="nav-directory" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-medium uppercase tracking-wider text-slate-300 hover:text-gold-400 hover:bg-slate-800/50 transition-all">
+            <i class="fa-solid fa-chess-knight text-base w-5 text-center text-purple-400"></i>
+            <span>Council Roster</span>
+          </button>
+
+          <!-- NEW: Council Archives -->
+          <button onclick="switchTab('archives')" id="nav-archives" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-medium uppercase tracking-wider text-slate-300 hover:text-gold-400 hover:bg-slate-800/50 transition-all">
+            <i class="fa-solid fa-folder-open text-base w-5 text-center text-amber-500"></i>
+            <span>Council Archives</span>
+          </button>
+
+          <button onclick="switchTab('profile')" id="nav-profile" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-medium uppercase tracking-wider text-slate-300 hover:text-gold-400 hover:bg-slate-800/50 transition-all">
+            <i class="fa-solid fa-id-card text-base w-5 text-center text-emerald-400"></i>
+            <span>My Dossier</span>
+          </button>
+
+          <!-- Emperor Admin Panel -->
+          <button onclick="switchTab('admin')" id="nav-admin" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-medium uppercase tracking-wider text-blood-400 bg-blood-900/10 border border-blood-900/30 hover:bg-blood-900/20 transition-all hidden">
+            <i class="fa-solid fa-bolt text-base w-5 text-center text-blood-500"></i>
+            <span>Emperor's Panel</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="p-4 border-t border-slate-800/80 bg-obsidian-950/60">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3 overflow-hidden">
+            <img id="user-avatar-sidebar" src="" alt="Avatar" class="w-10 h-10 rounded-full border border-gold-500/50 object-cover flex-shrink-0">
+            <div class="truncate">
+              <p id="user-name-sidebar" class="text-xs font-bold text-slate-200 truncate"></p>
+              <p id="user-role-sidebar" class="text-[10px] text-gold-500 tracking-wider truncate"></p>
+            </div>
+          </div>
+          <button onclick="logout()" title="Terminate Session" class="text-slate-500 hover:text-red-400 p-2 rounded-lg transition-colors">
+            <i class="fa-solid fa-power-off text-sm"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN VIEWPORT CONTENT AREA -->
+    <main class="flex-1 md:ml-64 flex flex-col min-h-screen bg-obsidian-800/60">
+      
+      <header class="h-20 border-b border-slate-800/80 px-6 flex items-center justify-between sticky top-0 bg-obsidian-900/90 backdrop-blur-md z-30">
+        <div class="flex items-center gap-4">
+          <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white p-2">
+            <i class="fa-solid fa-bars text-lg"></i>
+          </button>
+          <div>
+            <h3 id="current-view-title" class="font-cinzel text-base font-bold text-slate-100 uppercase tracking-wider">Council Chat</h3>
+            <p id="current-view-subtitle" class="text-xs text-slate-400">High Council secure transmission channel</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-4">
+          <div id="header-user-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gold-500/10 border border-gold-500/30 text-gold-400 text-xs font-semibold">
+            <i class="fa-solid fa-shield text-xs"></i>
+            <span id="header-user-role"></span>
+          </div>
+        </div>
+      </header>
+
+      <div class="flex-1 p-4 md:p-6 overflow-y-auto relative">
+        
+        <!-- VIEW 1: COUNCIL CHAT -->
+        <section id="view-chat" class="view-section flex flex-col h-[calc(100vh-140px)] max-w-6xl mx-auto glass-panel rounded-2xl overflow-hidden border border-slate-800 relative">
+          
+          <!-- Pinned Message Banner -->
+          <div id="pinned-message-container" class="hidden bg-obsidian-950/90 border-b border-gold-500/30 p-3 px-5 flex items-center justify-between shadow-md z-20 backdrop-blur-md relative group">
+            <div class="flex items-center gap-3 overflow-hidden">
+              <i class="fa-solid fa-thumbtack text-gold-500 text-sm animate-pulse flex-shrink-0"></i>
+              <div class="text-xs min-w-0">
+                <span id="pinned-author" class="font-bold text-gold-400 font-cinzel mr-1"></span>
+                <span id="pinned-text" class="text-slate-300 italic truncate block sm:inline"></span>
+              </div>
+            </div>
+            <button onclick="unpinMessage()" id="unpin-btn" class="hidden text-slate-500 hover:text-red-400 transition-colors ml-4 p-1"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+
+          <div id="chat-messages" class="flex-1 p-4 md:p-6 overflow-x-hidden overflow-y-auto space-y-4 relative">
+            <!-- Messages populated dynamically -->
+          </div>
+
+          <div class="p-4 border-t border-slate-800 bg-obsidian-950/80 backdrop-blur-md relative z-20 flex flex-col">
+            
+            <!-- Replying To Preview -->
+            <div id="reply-banner" class="hidden flex items-center justify-between bg-obsidian-900/80 border-l-2 border-gold-500 p-2 px-3 rounded-t-lg mb-2 text-xs">
+              <div class="overflow-hidden min-w-0">
+                <span class="block text-gold-500 font-bold truncate" id="reply-to-user"></span>
+                <span class="block text-slate-400 truncate" id="reply-to-text"></span>
+              </div>
+              <button type="button" onclick="cancelReply()" class="text-slate-500 hover:text-red-400 p-1 ml-2"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <!-- Attachment Preview -->
+            <div id="attachment-banner" class="hidden flex items-center justify-between bg-obsidian-900/80 border-l-2 border-cyan-500 p-2 px-3 rounded-t-lg mb-2 text-xs">
+              <div class="flex items-center gap-2 overflow-hidden min-w-0">
+                <i class="fa-solid fa-file text-cyan-400 flex-shrink-0"></i>
+                <span class="block text-slate-300 truncate" id="attachment-name"></span>
+              </div>
+              <button type="button" onclick="cancelAttachment()" class="text-slate-500 hover:text-red-400 p-1 ml-2"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form onsubmit="sendChatMessage(event)" class="flex items-center gap-2 relative">
+              <label class="cursor-pointer p-3 text-slate-400 hover:text-cyan-400 transition-colors flex-shrink-0" title="Attach Document/Image">
+                <i class="fa-solid fa-paperclip text-lg"></i>
+                <input type="file" id="chat-attachment-input" class="hidden" onchange="handleChatAttachment(event)">
+              </label>
+
+              <input type="text" id="chat-input" placeholder="Address the High Council..." class="flex-1 bg-obsidian-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-gold-500 transition-all">
+              
+              <button type="submit" class="p-3.5 px-6 rounded-xl bg-gradient-to-r from-gold-600 to-gold-500 text-obsidian-900 font-bold text-sm hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(212,175,55,0.2)]">
+                <i class="fa-solid fa-paper-plane"></i>
+                <span class="hidden sm:inline">Transmit</span>
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <!-- VIEW 2: DECREES & ORDERS (REQUESTS) -->
+        <section id="view-requests" class="view-section hidden max-w-6xl mx-auto space-y-6">
+          <div class="glass-panel p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 border border-slate-800">
+            <div>
+              <h2 class="font-cinzel text-lg font-bold text-slate-100">Council Petitions & Decrees</h2>
+              <p class="text-xs text-slate-400">Submit requests for Emperor BK's exclusive approval.</p>
+            </div>
+            <button onclick="document.getElementById('new-request-form').classList.toggle('hidden')" class="px-5 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-cyan-500 text-black font-semibold text-xs uppercase tracking-wider flex items-center gap-2 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
+              <i class="fa-solid fa-pen-nib"></i> Draft Petition
+            </button>
+          </div>
+
+          <!-- New Request Form -->
+          <div id="new-request-form" class="hidden glass-panel p-6 rounded-2xl border border-cyan-500/30 space-y-4">
+            <h3 class="font-cinzel text-sm font-bold text-cyan-400 uppercase tracking-wider">New Petition</h3>
+            <form onsubmit="submitRequest(event)" class="space-y-4">
+              <input type="text" id="req-title" required placeholder="Decree Title / Subject" class="w-full bg-obsidian-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100">
+              <textarea id="req-desc" required placeholder="Detail your petition to the Emperor..." class="w-full bg-obsidian-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 h-24 resize-none"></textarea>
+              <div class="flex justify-end">
+                <button type="submit" class="px-6 py-2.5 rounded-xl bg-cyan-500 text-obsidian-900 font-bold text-xs uppercase tracking-wider">Submit to Emperor</button>
+              </div>
+            </form>
+          </div>
+
+          <div id="requests-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <!-- VIEW 3: ROSTER DIRECTORY -->
+        <section id="view-directory" class="view-section hidden max-w-6xl mx-auto space-y-6">
+          <div class="glass-panel p-6 rounded-2xl border border-slate-800">
+            <h2 class="font-cinzel text-lg font-bold text-slate-100 mb-1">High Council Hierarchy</h2>
+            <p class="text-xs text-slate-400">Current active members and their standing ranks.</p>
+          </div>
+          <div id="directory-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <!-- VIEW 4: COUNCIL ARCHIVES (DOCUMENTS) -->
+        <section id="view-archives" class="view-section hidden max-w-6xl mx-auto space-y-6">
+          <div class="glass-panel p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 border border-slate-800">
+            <div>
+              <h2 class="font-cinzel text-lg font-bold text-slate-100">Council Archives</h2>
+              <p class="text-xs text-slate-400">Secure repository for documents, files, and visual intel.</p>
+            </div>
+            <label class="cursor-pointer px-5 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 text-black font-semibold text-xs uppercase tracking-wider flex items-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all hover:brightness-110">
+              <i class="fa-solid fa-cloud-arrow-up"></i> Upload Archive
+              <input type="file" id="archive-upload-input" class="hidden" onchange="uploadArchiveFile(event)">
+            </label>
+          </div>
+
+          <div id="archives-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <!-- VIEW 5: MY DOSSIER -->
+        <section id="view-profile" class="view-section hidden max-w-3xl mx-auto space-y-6">
+          <div class="glass-panel p-6 md:p-8 rounded-2xl space-y-6 border border-slate-800">
+            <div class="flex items-center gap-6 border-b border-slate-800 pb-6">
+              <div class="relative group">
+                <img id="profile-avatar-preview" src="" alt="Avatar" class="w-24 h-24 rounded-full object-cover border-2 border-gold-500 shadow-[0_0_20px_rgba(212,175,55,0.2)]">
+                <label class="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity text-xs font-semibold text-gold-400">
+                  <i class="fa-solid fa-camera text-lg"></i>
+                  <input type="file" id="avatar-input" class="hidden" accept="image/*" onchange="updateProfileAvatar(event)">
+                </label>
+              </div>
+              <div>
+                <h3 id="profile-username-display" class="font-cinzel text-2xl font-bold text-slate-100"></h3>
+                <span id="profile-role-badge" class="inline-block px-3 py-1 mt-1 rounded-full text-xs font-bold bg-gold-500/20 text-gold-400 border border-gold-500/40"></span>
+              </div>
+            </div>
+            <form onsubmit="saveProfileSettings(event)" class="space-y-4">
+              <div>
+                <label class="block text-xs uppercase tracking-wider text-slate-300 font-semibold mb-2">Personal Motto / Mandate</label>
+                <input type="text" id="profile-tagline-input" class="w-full bg-obsidian-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 focus:border-gold-500 transition-all">
+              </div>
+              <div class="pt-4 flex justify-end">
+                <button type="submit" class="px-6 py-3 rounded-xl bg-gradient-to-r from-gold-600 to-gold-500 text-obsidian-900 font-bold text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(212,175,55,0.2)]">Save Dossier</button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- VIEW 6: EMPEROR'S PANEL -->
+        <section id="view-admin" class="view-section hidden max-w-6xl mx-auto space-y-6">
+          <div class="glass-panel p-6 rounded-2xl border border-blood-500/40 bg-gradient-to-r from-blood-900/20 via-obsidian-900 to-obsidian-900">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-bolt text-2xl text-blood-500"></i>
+              <div>
+                <h2 class="font-cinzel text-xl font-bold blood-gradient-text uppercase">Emperor's Sanctum</h2>
+                <p class="text-xs text-slate-400">Absolute control over the High Council roster and standings.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+            <h3 class="font-cinzel text-sm font-bold text-gold-400 uppercase tracking-wider"><i class="fa-solid fa-user-plus mr-2"></i>Appoint Council Member</h3>
+            <form onsubmit="handleCreateAccount(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label class="block text-xs text-slate-300 font-semibold mb-1">Username</label>
+                <input type="text" id="admin-new-username" required class="w-full bg-obsidian-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-300 font-semibold mb-1">Password</label>
+                <input type="password" id="admin-new-password" required class="w-full bg-obsidian-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-300 font-semibold mb-1">Council Rank</label>
+                <select id="admin-new-role" class="w-full bg-obsidian-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100">
+                  <option value="Monarch">Monarch</option>
+                  <option value="Alcaide-mor">Alcaide-mor</option>
+                  <option value="Subalcaide">Subalcaide</option>
+                  <option value="Architect" selected>Architect</option>
+                </select>
+              </div>
+              <div class="flex items-end">
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-obsidian-900 font-bold text-xs uppercase tracking-wider transition-all">Appoint Member</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+            <h3 class="font-cinzel text-sm font-bold text-slate-200 uppercase tracking-wider"><i class="fa-solid fa-gavel mr-2"></i>Hierarchy Management</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-obsidian-950 uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                  <tr>
+                    <th class="p-3">Member</th>
+                    <th class="p-3">Rank</th>
+                    <th class="p-3">Status</th>
+                    <th class="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-users-table" class="divide-y divide-slate-800/60">
+                  <!-- Dynamic rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+
+  <!-- JAVASCRIPT FIREBASE & LOGIC -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { 
+      getDatabase, ref, set, get, onValue, push, update, remove 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+
+    // Same TSRA Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCf2AUnzeg-q2Ss_tGG1qpoeg27b1YgJKI",
+      authDomain: "the-secret-room-association.firebaseapp.com",
+      databaseURL: "https://the-secret-room-association-default-rtdb.firebaseio.com",
+      projectId: "the-secret-room-association",
+      storageBucket: "the-secret-room-association.firebasestorage.app",
+      messagingSenderId: "108554626255",
+      appId: "1:108554626255:web:547162ef9c2f6536c243ba"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // Global State
+    window.currentUser = null;
+    let currentTargetSilencingKey = null;
+    
+    // Chat States
+    let currentReplyTo = null; // { id, user, text }
+    let currentAttachment = null; // { file, name, type }
+    let contextMenuMsgId = null;
+
+    // Hierarchy Logic
+    const RANKS = { 'Emperor': 5, 'Monarch': 4, 'Alcaide-mor': 3, 'Subalcaide': 2, 'Architect': 1 };
+    function getRankLevel(role) { return RANKS[role] || 0; }
+
+    // Cloudinary Config (Reusable)
+    const CLOUDINARY_CLOUD_NAME = "w8hxvj2u";
+
+    // Boot: Seed Emperor BK in specific HC Node
+    async function seedEmperorAccount() {
+      try {
+        const bkRef = ref(db, 'hc_users/BK');
+        const snapshot = await get(bkRef);
+        
+        if (!snapshot.exists()) {
+          const ownerData = {
+            username: "BK",
+            password: "lu01201222",
+            role: "Emperor",
+            status: "active",
+            avatar: "https://placehold.co/120x120/0F1117/D4AF37?text=BK",
+            tagline: "Absolute ruler of the High Council.",
+            createdAt: new Date().toISOString()
+          };
+          await set(bkRef, ownerData);
+        }
+      } catch (err) {
+        console.error("Error seeding Emperor:", err);
+      }
+    }
+    seedEmperorAccount();
+
+    window.handleLogin = async function(event) {
+      event.preventDefault();
+      const usernameInput = document.getElementById('login-username').value.trim();
+      const passwordInput = document.getElementById('login-password').value.trim();
+      const errorBox = document.getElementById('login-error');
+      const errorText = document.getElementById('login-error-text');
+      errorBox.classList.add('hidden');
+
+      try {
+        const usersRef = ref(db, 'hc_users');
+        const snapshot = await get(usersRef);
+
+        if (!snapshot.exists()) throw new Error("No council members exist.");
+
+        const usersData = snapshot.val();
+        let matchedKey = null;
+        let userData = null;
+
+        for (const [key, user] of Object.entries(usersData)) {
+          if (user.username && user.username.toLowerCase() === usernameInput.toLowerCase()) {
+            matchedKey = key;
+            userData = user;
+            break;
+          }
+        }
+
+        if (!userData || userData.password !== passwordInput) {
+          errorText.innerText = "Access Denied. Invalid Identifier or Key.";
+          errorBox.classList.remove('hidden');
+          return;
+        }
+
+        if (userData.status === 'suspended') {
+          showModal("Account Suspended", "Your presence is suspended by the Emperor.");
+          return;
+        }
+        if (userData.status === 'banned') {
+          showModal("Exiled", "You have been permanently exiled from the High Council.");
+          return;
+        }
+
+        window.currentUser = { ...userData, dbKey: matchedKey };
+        showToast(`Welcome, ${userData.role} ${userData.username}`, 'success');
+        
+        document.getElementById('login-view').classList.add('hidden');
+        document.getElementById('app-view').classList.remove('hidden');
+
+        setupUserProfileUI();
+        initRealtimeChat();
+        initRequestsListener();
+        initDirectoryListener();
+        initArchivesListener();
+
+        // Emperor specific logic
+        document.getElementById('nav-admin').classList.add('hidden');
+        if (userData.role === 'Emperor') {
+          document.getElementById('nav-admin').classList.remove('hidden');
+          initAdminUsersListener();
+        }
+
+        switchTab('chat');
+      } catch (err) {
+        errorText.innerText = "Connection error to Sanctum.";
+        errorBox.classList.remove('hidden');
+      }
+    };
+
+    function setupUserProfileUI() {
+      const u = window.currentUser;
+      if (!u) return;
+      
+      const avatarSrc = u.avatar || 'https://placehold.co/100x100/0F1117/D4AF37?text=' + encodeURIComponent(u.username);
+      document.getElementById('user-avatar-sidebar').src = avatarSrc;
+      document.getElementById('user-name-sidebar').innerText = u.username;
+      document.getElementById('user-role-sidebar').innerText = u.role;
+      document.getElementById('header-user-role').innerText = u.role;
+
+      document.getElementById('profile-avatar-preview').src = avatarSrc;
+      document.getElementById('profile-username-display').innerText = u.username;
+      document.getElementById('profile-role-badge').innerText = u.role;
+      document.getElementById('profile-tagline-input').value = u.tagline || '';
+    }
+
+    window.switchTab = function(tabName) {
+      document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('bg-slate-800', 'text-gold-400'));
+
+      const targetView = document.getElementById(`view-${tabName}`);
+      if (targetView) targetView.classList.remove('hidden');
+
+      const targetNav = document.getElementById(`nav-${tabName}`);
+      if (targetNav) targetNav.classList.add('bg-slate-800', 'text-gold-400');
+
+      const titleMap = {
+        chat: { title: "Council Chat", sub: "Secure high-tier transmission channel" },
+        requests: { title: "Petitions & Decrees", sub: "Orders pending Emperor's absolute judgement" },
+        directory: { title: "Council Roster", sub: "Active members of the High Council" },
+        archives: { title: "Council Archives", sub: "Secure repository for sanctum intel" },
+        profile: { title: "My Dossier", sub: "Personal identity and settings" },
+        admin: { title: "Emperor's Sanctum", sub: "Absolute authority management" }
+      };
+
+      if (titleMap[tabName]) {
+        document.getElementById('current-view-title').innerText = titleMap[tabName].title;
+        document.getElementById('current-view-subtitle').innerText = titleMap[tabName].sub;
+      }
+      document.getElementById('sidebar').classList.add('-translate-x-full');
+    };
+
+    window.toggleSidebar = function() {
+      document.getElementById('sidebar').classList.toggle('-translate-x-full');
+    };
+
+    window.logout = function() {
+      window.currentUser = null;
+      document.getElementById('app-view').classList.add('hidden');
+      document.getElementById('login-view').classList.remove('hidden');
+      document.getElementById('login-username').value = '';
+      document.getElementById('login-password').value = '';
+      showToast('Sanctum session terminated.', 'info');
+    };
+
+    function initRealtimeChat() {
+      const chatRef = ref(db, 'hc_chats');
+      onValue(chatRef, (snapshot) => {
+        const chatContainer = document.getElementById('chat-messages');
+        const scrollAtBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50;
+        
+        chatContainer.innerHTML = '';
+
+        // Reset pinned banner defaults
+        document.getElementById('pinned-message-container').classList.add('hidden');
+        document.getElementById('unpin-btn').classList.add('hidden');
+        let pinnedMsg = null;
+
+        if (!snapshot.exists()) {
+          chatContainer.innerHTML = `<div class="text-center py-12 text-slate-500 text-xs">Silence reigns. Speak to the Council.</div>`;
+          return;
+        }
+
+        const messages = snapshot.val();
+        
+        Object.keys(messages).forEach(key => {
+          const msg = messages[key];
+          
+          if (msg.isPinned) {
+            pinnedMsg = { key, ...msg };
+          }
+
+          const isSelf = window.currentUser && msg.sender === window.currentUser.username;
+          
+          const msgEl = document.createElement('div');
+          // Add drag classes/attributes for swipe-to-reply
+          msgEl.className = `flex gap-3 max-w-[85%] sm:max-w-xl relative ${isSelf ? 'ml-auto flex-row-reverse' : ''} mt-2 chat-message-container`;
+          msgEl.dataset.msgId = key;
+          msgEl.dataset.msgUser = msg.sender;
+          msgEl.dataset.msgText = msg.text || (msg.attachmentUrl ? '[File Attachment]' : '');
+
+          let rankBadgeClass = msg.role === 'Emperor' ? 'text-blood-400 font-cinzel text-sm' : 
+                               msg.role === 'Monarch' ? 'text-gold-400' : 'text-slate-300';
+
+          // Reply Block HTML
+          let replyHTML = '';
+          if (msg.replyTo) {
+            replyHTML = `
+              <div class="bg-black/30 border-l-2 border-gold-500 rounded p-2 mb-2 text-[10px] cursor-pointer hover:bg-black/50 transition-colors">
+                <span class="text-gold-400 font-bold block">${escapeHTML(msg.replyTo.user)}</span>
+                <span class="text-slate-400 truncate block">${escapeHTML(msg.replyTo.text)}</span>
+              </div>
+            `;
+          }
+
+          // Attachment Block HTML
+          let attachmentHTML = '';
+          if (msg.attachmentUrl) {
+            if (msg.attachmentType && msg.attachmentType.startsWith('image/')) {
+              attachmentHTML = `<img src="${msg.attachmentUrl}" class="max-w-full max-h-64 rounded-lg mb-2 object-contain cursor-pointer hover:opacity-90 border border-slate-700" onclick="window.open('${msg.attachmentUrl}', '_blank')">`;
+            } else {
+              attachmentHTML = `
+                <a href="${msg.attachmentUrl}" target="_blank" class="flex items-center gap-3 p-3 bg-obsidian-950/50 rounded-lg mb-2 border border-slate-700 hover:border-cyan-500/50 transition-colors text-cyan-400 text-xs">
+                  <i class="fa-solid fa-file-arrow-down text-lg"></i>
+                  <span class="truncate">${escapeHTML(msg.attachmentName || 'Download File')}</span>
+                </a>
+              `;
+            }
+          }
+
+          let textHTML = msg.text ? `<p class="break-words select-text">${escapeHTML(msg.text)}</p>` : '';
+
+          msgEl.innerHTML = `
+            <img onclick="showPublicProfile('${msg.sender}')" src="${msg.avatar || 'https://placehold.co/40x40'}" class="w-8 h-8 rounded-full border border-slate-600 object-cover flex-shrink-0 cursor-pointer hover:scale-110 transition-all mt-1">
+            <div class="space-y-1 ${isSelf ? 'text-right' : 'text-left'} max-w-full flex-1 min-w-0">
+              <div class="flex items-center gap-2 ${isSelf ? 'justify-end' : ''}">
+                <span class="text-xs font-bold ${rankBadgeClass}">${msg.sender}</span>
+                <span class="text-[10px] text-slate-500 uppercase">${msg.role}</span>
+              </div>
+              <div class="inline-block text-left p-3 text-xs leading-relaxed ${isSelf ? 'bg-slate-800 text-slate-200 rounded-2xl rounded-tr-none' : 'bg-obsidian-900 border border-slate-700/80 text-slate-300 rounded-2xl rounded-tl-none'} shadow-sm relative overflow-hidden group">
+                ${replyHTML}
+                ${attachmentHTML}
+                ${textHTML}
+              </div>
+            </div>
+            
+            <div class="swipe-reply-icon text-gold-500 bg-obsidian-900 p-2 rounded-full border border-gold-500/30 shadow-lg ${isSelf ? 'right-full mr-2' : 'left-full ml-2'}">
+              <i class="fa-solid fa-reply"></i>
+            </div>
+          `;
+
+          // Attach Context Menu / Long Press Events for Actions (Emperor Only)
+          const bubble = msgEl.querySelector('.p-3');
+          
+          bubble.addEventListener('contextmenu', (e) => handleContextMenu(e, key, msg.isPinned));
+          
+          let pressTimer;
+          bubble.addEventListener('touchstart', (e) => {
+            pressTimer = window.setTimeout(() => handleContextMenu(e, key, msg.isPinned, true), 600);
+          }, {passive: true});
+          bubble.addEventListener('touchend', () => clearTimeout(pressTimer));
+          bubble.addEventListener('touchmove', () => clearTimeout(pressTimer));
+
+          chatContainer.appendChild(msgEl);
+        });
+
+        // Set Pinned Message Banner if exists
+        if (pinnedMsg) {
+          const banner = document.getElementById('pinned-message-container');
+          banner.classList.remove('hidden');
+          document.getElementById('pinned-author').innerText = pinnedMsg.sender + ":";
+          document.getElementById('pinned-text').innerText = pinnedMsg.text || (pinnedMsg.attachmentUrl ? '[Attachment]' : '');
+          if (window.currentUser && window.currentUser.role === 'Emperor') {
+            const unpin = document.getElementById('unpin-btn');
+            unpin.classList.remove('hidden');
+            unpin.dataset.key = pinnedMsg.key;
+          }
+        }
+
+        if (scrollAtBottom) {
+          setTimeout(() => chatContainer.scrollTop = chatContainer.scrollHeight, 50);
+        }
+      });
+      
+      initChatSwipeEvents();
+    }
+
+    function initChatSwipeEvents() {
+      const chatContainer = document.getElementById('chat-messages');
+      let startX = 0;
+      let startY = 0;
+      let currentX = 0;
+      let draggingElement = null;
+      let isSwiping = false;
+
+      const resetDrag = () => {
+        if (draggingElement) {
+          draggingElement.style.transform = '';
+          const icon = draggingElement.querySelector('.swipe-reply-icon');
+          if(icon) icon.style.opacity = '0';
+        }
+        draggingElement = null;
+        isSwiping = false;
+      };
+
+      chatContainer.addEventListener('touchstart', (e) => {
+        const msgCont = e.target.closest('.chat-message-container');
+        if (!msgCont) return;
+        draggingElement = msgCont;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        isSwiping = false;
+      }, {passive: true});
+
+      chatContainer.addEventListener('touchmove', (e) => {
+        if (!draggingElement) return;
+        
+        currentX = e.touches[0].clientX;
+        const currentY = e.touches[0].clientY;
+        
+        const diffX = currentX - startX;
+        const diffY = currentY - startY;
+
+        // Cancel horizontal swipe if user is scrolling vertically
+        if (Math.abs(diffY) > Math.abs(diffX) && !isSwiping) {
+          resetDrag();
+          return;
+        }
+
+        if (Math.abs(diffX) > 10) isSwiping = true;
+
+        if (isSwiping) {
+          // Allow drag right to reply
+          if (diffX > 0 && diffX < 100) {
+            draggingElement.style.transform = `translateX(${diffX}px)`;
+            const icon = draggingElement.querySelector('.swipe-reply-icon');
+            if(icon) {
+              icon.style.opacity = Math.min(diffX / 50, 1).toString();
+            }
+          }
+        }
+      }, {passive: false});
+
+      chatContainer.addEventListener('touchend', (e) => {
+        if (!draggingElement || !isSwiping) return;
+        const diffX = currentX - startX;
+        
+        if (diffX > 60) {
+          // Trigger Reply threshold met
+          const id = draggingElement.dataset.msgId;
+          const user = draggingElement.dataset.msgUser;
+          const text = draggingElement.dataset.msgText;
+          setReplyMode(id, user, text);
+          
+          if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
+        }
+        resetDrag();
+      });
+    }
+
+    // --- Message Reply & Attachment State Handlers ---
+    window.setReplyMode = function(id, user, text) {
+      currentReplyTo = { id, user, text };
+      const banner = document.getElementById('reply-banner');
+      banner.classList.remove('hidden');
+      document.getElementById('reply-to-user').innerText = user;
+      document.getElementById('reply-to-text').innerText = text;
+      document.getElementById('chat-input').focus();
+    };
+
+    window.cancelReply = function() {
+      currentReplyTo = null;
+      document.getElementById('reply-banner').classList.add('hidden');
+    };
+
+    window.handleChatAttachment = async function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const banner = document.getElementById('attachment-banner');
+      document.getElementById('attachment-name').innerText = file.name;
+      banner.classList.remove('hidden');
+      
+      currentAttachment = { file, name: file.name, type: file.type };
+    };
+
+    window.cancelAttachment = function() {
+      currentAttachment = null;
+      document.getElementById('attachment-banner').classList.add('hidden');
+      document.getElementById('chat-attachment-input').value = '';
+    };
+
+    window.sendChatMessage = async function(event) {
+      event.preventDefault();
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      
+      if (!text && !currentAttachment) return;
+
+      // Ensure user is not silenced by a Monarch
+      const userRef = ref(db, `hc_users/${window.currentUser.dbKey}`);
+      const userSnap = await get(userRef);
+      if (userSnap.exists()) {
+        const u = userSnap.val();
+        if (u.silencedUntil && Date.now() < u.silencedUntil) {
+          const remainingSecs = Math.ceil((u.silencedUntil - Date.now()) / 1000);
+          showToast(`Silence enforced. ${remainingSecs}s remaining.`, 'error');
+          return;
+        }
+      }
+
+      // Process Attachment
+      let uploadedUrl = null;
+      if (currentAttachment) {
+        showToast('Encrypting & Transmitting file...', 'info');
+        uploadedUrl = await uploadFileToCloudinaryOrBase64(currentAttachment.file);
+        if(!uploadedUrl) {
+           showToast('File transmission failed.', 'error');
+           return;
+        }
+      }
+
+      const newMsg = {
+        sender: window.currentUser.username,
+        role: window.currentUser.role,
+        avatar: window.currentUser.avatar || 'https://placehold.co/40x40',
+        text: text,
+        time: new Date().toISOString(),
+        replyTo: currentReplyTo ? { user: currentReplyTo.user, text: currentReplyTo.text } : null,
+        attachmentUrl: uploadedUrl,
+        attachmentName: currentAttachment ? currentAttachment.name : null,
+        attachmentType: currentAttachment ? currentAttachment.type : null,
+        isPinned: false
+      };
+
+      try {
+        await push(ref(db, 'hc_chats'), newMsg);
+        input.value = '';
+        cancelReply();
+        cancelAttachment();
+      } catch (err) {
+        showToast('Failed to transmit message', 'error');
+      }
+    };
+
+    // --- Message Context Actions (Emperor BK Only) ---
+    function handleContextMenu(e, msgId, isPinned, isTouch = false) {
+      const isEmperor = window.currentUser && window.currentUser.role === 'Emperor';
+      if (!isEmperor) return; // Only Emperor has delete/pin rights for chat messages
+
+      e.preventDefault();
+      contextMenuMsgId = msgId;
+      const menu = document.getElementById('msg-context-menu');
+      
+      document.getElementById('pin-action-text').innerText = isPinned ? 'Unpin Message' : 'Pin Message';
+      
+      menu.classList.remove('hidden');
+      
+      let x, y;
+      if (isTouch) {
+        x = e.touches[0].clientX;
+        y = e.touches[0].clientY;
+      } else {
+        x = e.pageX;
+        y = e.pageY;
+      }
+
+      // Constrain to viewport
+      if (x + 160 > window.innerWidth) x -= 160;
+      if (y + 100 > window.innerHeight) y -= 100;
+
+      menu.style.left = `${x}px`;
+      menu.style.top = `${y}px`;
+
+      // Auto-close menu logic
+      const closeMenu = (e) => {
+        if(!menu.contains(e.target)) {
+          menu.classList.add('hidden');
+          document.removeEventListener('click', closeMenu);
+          document.removeEventListener('touchstart', closeMenu);
+        }
+      };
+      setTimeout(() => {
+        document.addEventListener('click', closeMenu);
+        document.addEventListener('touchstart', closeMenu, {passive: true});
+      }, 10);
+    }
+
+    window.actionDeleteMessage = async function() {
+      if(!contextMenuMsgId) return;
+      try {
+        await remove(ref(db, `hc_chats/${contextMenuMsgId}`));
+        showToast('Message eradicated by Emperor decree.', 'success');
+      } catch (e) {
+        showToast('Eradication failed.', 'error');
+      }
+      document.getElementById('msg-context-menu').classList.add('hidden');
+    };
+
+    window.actionPinMessage = async function() {
+      if(!contextMenuMsgId) return;
+      try {
+        // Unpin any existing pinned messages first
+        const chatSnap = await get(ref(db, 'hc_chats'));
+        if(chatSnap.exists()) {
+           const updates = {};
+           Object.keys(chatSnap.val()).forEach(k => {
+             if (chatSnap.val()[k].isPinned) updates[`${k}/isPinned`] = false;
+           });
+           if(Object.keys(updates).length > 0) {
+             await update(ref(db, 'hc_chats'), updates);
+           }
+        }
+        
+        const targetSnap = await get(ref(db, `hc_chats/${contextMenuMsgId}/isPinned`));
+        const isCurrentlyPinned = targetSnap.val();
+        
+        if (!isCurrentlyPinned) {
+           await update(ref(db, `hc_chats/${contextMenuMsgId}`), { isPinned: true });
+           showToast('Decree Pinned.', 'success');
+        } else {
+           showToast('Decree Unpinned.', 'info');
+        }
+      } catch(e) { showToast('Action failed.', 'error'); }
+      document.getElementById('msg-context-menu').classList.add('hidden');
+    };
+
+    window.unpinMessage = async function() {
+       const btn = document.getElementById('unpin-btn');
+       const key = btn.dataset.key;
+       if(key) {
+         try {
+           await update(ref(db, `hc_chats/${key}`), { isPinned: false });
+           showToast('Decree Unpinned.', 'info');
+         } catch(e) {}
+       }
+    };
+
+
+    function initArchivesListener() {
+      const arcRef = ref(db, 'hc_archives');
+      onValue(arcRef, (snapshot) => {
+        const grid = document.getElementById('archives-grid');
+        grid.innerHTML = '';
+
+        if (!snapshot.exists()) {
+          grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500 text-xs">The Archives are currently empty.</div>`;
+          return;
+        }
+
+        const files = snapshot.val();
+        Object.keys(files).forEach(key => {
+          const f = files[key];
+          
+          // Emperor can delete ANY file. Owner can delete THEIR file.
+          const isEmperor = window.currentUser && window.currentUser.role === 'Emperor';
+          const isOwner = window.currentUser && f.owner === window.currentUser.username;
+          
+          const card = document.createElement('div');
+          card.className = "glass-panel p-4 rounded-xl border border-slate-800 flex flex-col justify-between gap-3 group hover:border-amber-500/30 transition-all";
+          
+          let icon = 'fa-file';
+          let iconColor = 'text-slate-400';
+          if (f.type.startsWith('image/')) { icon = 'fa-image'; iconColor = 'text-cyan-400'; }
+          else if (f.type.includes('pdf')) { icon = 'fa-file-pdf'; iconColor = 'text-red-400'; }
+          else if (f.type.includes('video')) { icon = 'fa-film'; iconColor = 'text-purple-400'; }
+
+          let deleteBtn = '';
+          if (isEmperor || isOwner) {
+            deleteBtn = `
+              <button onclick="deleteArchiveFile('${key}')" class="text-slate-500 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 p-1" title="Purge File">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            `;
+          }
+
+          card.innerHTML = `
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-3 overflow-hidden">
+                <div class="w-10 h-10 rounded-lg bg-obsidian-900 border border-slate-700 flex items-center justify-center flex-shrink-0">
+                  <i class="fa-solid ${icon} ${iconColor} text-lg"></i>
+                </div>
+                <div class="overflow-hidden">
+                  <p class="text-xs font-bold text-slate-200 truncate" title="${escapeHTML(f.name)}">${escapeHTML(f.name)}</p>
+                  <p class="text-[9px] text-slate-400">Uploaded by <span class="${f.owner === 'BK' ? 'text-blood-400 font-cinzel' : 'text-gold-400'}">${escapeHTML(f.owner)}</span></p>
+                </div>
+              </div>
+              ${deleteBtn}
+            </div>
+            
+            <a href="${f.url}" target="_blank" class="w-full py-2 rounded-lg bg-obsidian-900 border border-slate-700/80 text-center text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition-all block">
+              <i class="fa-solid fa-eye mr-1"></i> Access Record
+            </a>
+          `;
+          grid.appendChild(card);
+        });
+      });
+    }
+
+    window.uploadArchiveFile = async function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      showToast('Encrypting and transferring to Archives...', 'info');
+      const url = await uploadFileToCloudinaryOrBase64(file);
+      
+      if (!url) {
+        showToast('Failed to upload archive.', 'error');
+        return;
+      }
+
+      const newArc = {
+        name: file.name,
+        type: file.type,
+        url: url,
+        owner: window.currentUser.username,
+        timestamp: new Date().toISOString()
+      };
+
+      try {
+        await push(ref(db, 'hc_archives'), newArc);
+        showToast('Document securely archived.', 'success');
+        event.target.value = '';
+      } catch (err) { showToast('Archive failed.', 'error'); }
+    };
+
+    window.deleteArchiveFile = async function(key) {
+      try {
+        await remove(ref(db, `hc_archives/${key}`));
+        showToast('Document purged from Archives.', 'info');
+      } catch (err) { showToast('Purge failed.', 'error'); }
+    };
+
+    // --- Petitions & Decrees Logic ---
+    function initRequestsListener() {
+      const reqRef = ref(db, 'hc_requests');
+      onValue(reqRef, (snapshot) => {
+        const grid = document.getElementById('requests-grid');
+        grid.innerHTML = '';
+
+        if (!snapshot.exists()) {
+          grid.innerHTML = `<div class="col-span-full text-center py-8 text-slate-500 text-xs">No active petitions.</div>`;
+          return;
+        }
+
+        const reqs = snapshot.val();
+        const sortedKeys = Object.keys(reqs).sort((a,b) => new Date(reqs[b].timestamp) - new Date(reqs[a].timestamp));
+
+        sortedKeys.forEach(key => {
+          const req = reqs[key];
+          const isEmperor = window.currentUser.role === 'Emperor';
+          
+          const card = document.createElement('div');
+          card.className = `glass-panel p-5 rounded-xl border ${req.status === 'pending' ? 'border-amber-500/30' : req.status === 'approved' ? 'border-emerald-500/30' : 'border-blood-500/30'} relative`;
+
+          let statusBadge = '';
+          if (req.status === 'pending') statusBadge = `<span class="absolute top-4 right-4 text-[10px] uppercase font-bold text-amber-400 bg-amber-900/30 px-2 py-1 rounded-md">Pending</span>`;
+          if (req.status === 'approved') statusBadge = `<span class="absolute top-4 right-4 text-[10px] uppercase font-bold text-emerald-400 bg-emerald-900/30 px-2 py-1 rounded-md">Approved</span>`;
+          if (req.status === 'rejected') statusBadge = `<span class="absolute top-4 right-4 text-[10px] uppercase font-bold text-blood-400 bg-blood-900/30 px-2 py-1 rounded-md">Rejected</span>`;
+
+          let actionButtons = '';
+          if (isEmperor && req.status === 'pending') {
+            actionButtons = `
+              <div class="flex gap-2 mt-4 pt-4 border-t border-slate-800">
+                <button onclick="judgeRequest('${key}', 'approved')" class="flex-1 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase hover:bg-emerald-500/30 transition-all border border-emerald-500/30"><i class="fa-solid fa-check mr-1"></i> Approve</button>
+                <button onclick="judgeRequest('${key}', 'rejected')" class="flex-1 py-1.5 rounded-lg bg-blood-900/40 text-blood-400 text-xs font-bold uppercase hover:bg-blood-500/30 transition-all border border-blood-500/30"><i class="fa-solid fa-xmark mr-1"></i> Reject</button>
+              </div>
+            `;
+          }
+
+          card.innerHTML = `
+            ${statusBadge}
+            <div class="flex items-center gap-3 mb-3">
+              <img src="${req.avatar || 'https://placehold.co/40x40'}" class="w-8 h-8 rounded-full border border-slate-700">
+              <div>
+                <p class="text-xs font-bold text-slate-200">${req.author}</p>
+                <p class="text-[9px] text-slate-400">${new Date(req.timestamp).toLocaleString()}</p>
+              </div>
+            </div>
+            <h4 class="text-sm font-bold text-cyan-400 mb-2">${escapeHTML(req.title)}</h4>
+            <p class="text-xs text-slate-300 leading-relaxed">${escapeHTML(req.description)}</p>
+            ${actionButtons}
+          `;
+          grid.appendChild(card);
+        });
+      });
+    }
+
+    window.submitRequest = async function(event) {
+      event.preventDefault();
+      const title = document.getElementById('req-title').value.trim();
+      const desc = document.getElementById('req-desc').value.trim();
+
+      const newReq = {
+        title: title,
+        description: desc,
+        author: window.currentUser.username,
+        avatar: window.currentUser.avatar || '',
+        status: 'pending',
+        timestamp: new Date().toISOString()
+      };
+
+      try {
+        await push(ref(db, 'hc_requests'), newReq);
+        showToast('Petition submitted to the Emperor.', 'success');
+        document.getElementById('new-request-form').classList.add('hidden');
+        document.getElementById('req-title').value = '';
+        document.getElementById('req-desc').value = '';
+      } catch (err) {
+        showToast('Failed to submit petition', 'error');
+      }
+    };
+
+    window.judgeRequest = async function(key, status) {
+      try {
+        await update(ref(db, `hc_requests/${key}`), { status: status });
+        showToast(`Petition ${status} by Emperor decree.`, 'info');
+      } catch (err) {
+        showToast('Action failed', 'error');
+      }
+    };
+
+    function initDirectoryListener() {
+      const usersRef = ref(db, 'hc_users');
+      onValue(usersRef, (snapshot) => {
+        const grid = document.getElementById('directory-grid');
+        grid.innerHTML = '';
+        if (!snapshot.exists()) return;
+
+        const users = snapshot.val();
+        
+        const usersArray = Object.keys(users).map(k => ({...users[k], key: k}));
+        usersArray.sort((a,b) => getRankLevel(b.role) - getRankLevel(a.role));
+
+        usersArray.forEach(u => {
+          const card = document.createElement('div');
+          card.className = "glass-panel p-5 rounded-2xl flex items-center gap-4 border border-slate-800 hover:border-gold-500/30 transition-all cursor-pointer hover:bg-slate-800/40";
+          card.onclick = () => showPublicProfile(u.username, u.key);
+
+          const isSilenced = u.silencedUntil && Date.now() < u.silencedUntil;
+
+          card.innerHTML = `
+            <div class="relative">
+              <img src="${u.avatar || 'https://placehold.co/100x100'}" class="w-14 h-14 rounded-full object-cover border-2 ${u.role === 'Emperor' ? 'border-blood-500' : 'border-slate-700'}">
+              ${isSilenced ? '<div class="absolute -top-1 -right-1 bg-blood-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] shadow-lg"><i class="fa-solid fa-microphone-slash"></i></div>' : ''}
+            </div>
+            <div class="truncate space-y-1">
+              <div class="flex items-center gap-2">
+                <h4 class="font-cinzel text-sm font-bold ${u.role === 'Emperor' ? 'text-blood-400' : 'text-slate-100'} truncate">${u.username}</h4>
+              </div>
+              <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-800 text-gold-400 border border-slate-700">
+                ${u.role}
+              </span>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+      });
+    }
+
+    window.showPublicProfile = async function(username, userKeyProvided = null) {
+      try {
+        const usersRef = ref(db, 'hc_users');
+        const snapshot = await get(usersRef);
+        if (!snapshot.exists()) return;
+
+        const users = snapshot.val();
+        let targetKey = userKeyProvided;
+        let u = null;
+
+        if (!targetKey) {
+          targetKey = Object.keys(users).find(k => users[k].username === username);
+        }
+        
+        if (targetKey) {
+          u = users[targetKey];
+          currentTargetSilencingKey = targetKey;
+          
+          document.getElementById('pub-profile-avatar').src = u.avatar || 'https://placehold.co/100x100';
+          document.getElementById('pub-profile-username').innerText = u.username;
+          document.getElementById('pub-profile-role').innerText = u.role;
+          document.getElementById('pub-profile-tagline').innerText = u.tagline || 'Member of the High Council.';
+
+          const silenceContainer = document.getElementById('silence-action-container');
+          
+          const myRank = getRankLevel(window.currentUser.role);
+          const targetRank = getRankLevel(u.role);
+
+          if (window.currentUser.role === 'Monarch' && targetRank < myRank) {
+             silenceContainer.classList.remove('hidden');
+          } else {
+             silenceContainer.classList.add('hidden');
+          }
+
+          document.getElementById('public-profile-modal').classList.remove('hidden');
+        }
+      } catch(err) {
+        showToast('Error loading dossier.', 'error');
+      }
+    };
+
+    window.closePublicProfile = function() {
+      document.getElementById('public-profile-modal').classList.add('hidden');
+      currentTargetSilencingKey = null;
+    };
+
+    window.applySilenceToUser = async function() {
+      if (!currentTargetSilencingKey) return;
+      
+      const seconds = parseInt(document.getElementById('silence-duration').value);
+      const silencedUntil = Date.now() + (seconds * 1000);
+
+      try {
+        await update(ref(db, `hc_users/${currentTargetSilencingKey}`), { silencedUntil: silencedUntil });
+        showToast(`Monarch Decree applied. User silenced.`, 'success');
+        closePublicProfile();
+      } catch (err) {
+        showToast('Failed to enforce silence.', 'error');
+      }
+    };
+
+    async function uploadFileToCloudinaryOrBase64(file) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', 'unsigned_preset');
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, { method: 'POST', body: formData });
+        if (response.ok) { const data = await response.json(); return data.secure_url; }
+      } catch (err) {}
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    window.updateProfileAvatar = async function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      showToast('Updating image...', 'info');
+      const url = await uploadFileToCloudinaryOrBase64(file);
+      try {
+        await set(ref(db, `hc_users/${window.currentUser.dbKey}/avatar`), url);
+        window.currentUser.avatar = url;
+        setupUserProfileUI();
+        showToast('Avatar updated', 'success');
+      } catch (err) { showToast('Update failed', 'error'); }
+    };
+
+    window.saveProfileSettings = async function(event) {
+      event.preventDefault();
+      const tagline = document.getElementById('profile-tagline-input').value.trim();
+      try {
+        await set(ref(db, `hc_users/${window.currentUser.dbKey}/tagline`), tagline);
+        window.currentUser.tagline = tagline;
+        showToast('Dossier updated', 'success');
+      } catch (err) { showToast('Update failed', 'error'); }
+    };
+
+    function initAdminUsersListener() {
+      const usersRef = ref(db, 'hc_users');
+      onValue(usersRef, (snapshot) => {
+        const tbody = document.getElementById('admin-users-table');
+        tbody.innerHTML = '';
+        if (!snapshot.exists()) return;
+
+        const users = snapshot.val();
+        Object.keys(users).forEach(key => {
+          const u = users[key];
+          const isEmperor = u.role === 'Emperor';
+          
+          let statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-400">Active</span>`;
+          if (u.status === 'suspended') statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-500/20 text-amber-400">Suspended</span>`;
+          if (u.status === 'banned') statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-red-500/20 text-red-400">Exiled</span>`;
+
+          const tr = document.createElement('tr');
+          tr.className = "hover:bg-slate-800/40 transition-colors";
+          tr.innerHTML = `
+            <td class="p-3 flex items-center gap-3">
+              <img src="${u.avatar || 'https://placehold.co/40x40'}" class="w-8 h-8 rounded-full object-cover">
+              <span class="font-bold text-slate-200">${u.username}</span>
+            </td>
+            <td class="p-3 font-semibold text-gold-400">${u.role}</td>
+            <td class="p-3">${statusBadge}</td>
+            <td class="p-3 text-right">
+              ${isEmperor ? '<span class="text-blood-400 italic text-[10px]">Absolute Authority</span>' : `
+                <div class="flex items-center justify-end gap-1.5">
+                  ${u.status === 'active' ? `
+                    <button onclick="toggleUserStatus('${key}', 'suspended')" class="p-1.5 rounded-lg bg-amber-500/20 text-amber-400" title="Suspend"><i class="fa-solid fa-pause text-xs"></i></button>
+                  ` : `
+                    <button onclick="toggleUserStatus('${key}', 'active')" class="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400" title="Reactivate"><i class="fa-solid fa-play text-xs"></i></button>
+                  `}
+                  <button onclick="toggleUserStatus('${key}', 'banned')" class="p-1.5 rounded-lg bg-red-500/20 text-red-400" title="Exile"><i class="fa-solid fa-ban text-xs"></i></button>
+                  <button onclick="deleteAccount('${key}')" class="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-red-400" title="Delete"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                </div>
+              `}
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      });
+    }
+
+    window.handleCreateAccount = async function(event) {
+      event.preventDefault();
+      const username = document.getElementById('admin-new-username').value.trim();
+      const password = document.getElementById('admin-new-password').value.trim();
+      const role = document.getElementById('admin-new-role').value;
+
+      const safeKey = username.replace(/[.#$\[\]]/g, '_');
+      try {
+        const snap = await get(ref(db, 'hc_users'));
+        if (snap.exists() && Object.values(snap.val()).some(u => u.username.toLowerCase() === username.toLowerCase())) {
+          showToast('Username already claimed.', 'error');
+          return;
+        }
+
+        const newUser = {
+          username, password, role, status: 'active',
+          avatar: `https://placehold.co/120x120/0F1117/D4AF37?text=${encodeURIComponent(username)}`,
+          tagline: `Council ${role}.`,
+          createdAt: new Date().toISOString()
+        };
+        await set(ref(db, `hc_users/${safeKey}`), newUser);
+        showToast(`Appointed new ${role}.`, 'success');
+        event.target.reset();
+      } catch (err) { showToast('Appointment failed.', 'error'); }
+    };
+
+    window.toggleUserStatus = async function(key, status) {
+      try {
+        await update(ref(db, `hc_users/${key}`), { status });
+        showToast(`Account status: ${status}`, 'info');
+      } catch (err) { showToast('Update failed', 'error'); }
+    };
+
+    window.deleteAccount = async function(key) {
+      try {
+        await remove(ref(db, `hc_users/${key}`));
+        showToast(`Council member erased.`, 'info');
+      } catch (err) { showToast('Erase failed', 'error'); }
+    };
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const bgMap = {
+        success: 'bg-emerald-950/90 border-emerald-500/40 text-emerald-300',
+        error: 'bg-red-950/90 border-red-500/40 text-red-300',
+        info: 'bg-obsidian-900 border-gold-500/40 text-gold-300'
+      };
+      toast.className = `p-3 px-4 rounded-xl border backdrop-blur-md shadow-lg text-xs flex items-center gap-2 transition-all transform translate-y-2 opacity-0 ${bgMap[type] || bgMap.info}`;
+      toast.innerHTML = `<i class="fa-solid fa-circle-info"></i> <span>${escapeHTML(message)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
+      setTimeout(() => {
+        toast.classList.add('opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    function showModal(title, body) {
+      document.getElementById('modal-title').innerText = title;
+      document.getElementById('modal-body').innerText = body;
+      document.getElementById('modal-container').classList.remove('hidden');
+    }
+    window.closeModal = function() { document.getElementById('modal-container').classList.add('hidden'); };
+    function escapeHTML(str) {
+      if (!str) return '';
+      return str.replace(/[&<>'"]/g, tag => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[tag]||tag));
+    }
+  </script>
+</body>
+</html>
