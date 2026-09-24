@@ -135,6 +135,36 @@
       from { opacity: 0; transform: scale(0.95); }
       to { opacity: 1; transform: scale(1); }
     }
+
+    /* Luxury Petitions Styles */
+    .petition-card {
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease;
+    }
+    .petition-gold {
+      background: linear-gradient(135deg, rgba(212,175,55,0.15) 0%, rgba(10,11,14,0.95) 30%, rgba(10,11,14,0.95) 70%, rgba(212,175,55,0.15) 100%) !important;
+      border: 1px solid #D4AF37 !important;
+      box-shadow: 0 0 30px rgba(212,175,55,0.25), inset 0 0 20px rgba(212,175,55,0.15) !important;
+    }
+    .petition-silver {
+      background: linear-gradient(135deg, rgba(192,192,192,0.15) 0%, rgba(10,11,14,0.95) 30%, rgba(10,11,14,0.95) 70%, rgba(192,192,192,0.15) 100%) !important;
+      border: 1px solid #E2E8F0 !important;
+      box-shadow: 0 0 30px rgba(192,192,192,0.2), inset 0 0 20px rgba(192,192,192,0.1) !important;
+    }
+    .shimmer-effect::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -150%; width: 50%; height: 100%;
+      background: linear-gradient(to right, transparent, rgba(255,255,255,0.15), transparent);
+      transform: skewX(-25deg);
+      animation: shimmer 5s infinite;
+      pointer-events: none;
+      border-radius: inherit;
+    }
+    @keyframes shimmer {
+      0% { left: -150%; }
+      20% { left: 250%; }
+      100% { left: 250%; }
+    }
   </style>
 </head>
 <body class="min-h-screen antialiased flex flex-col justify-between selection:bg-gold-500 selection:text-black">
@@ -165,6 +195,29 @@
       </button>
       <button id="menu-action-delete" onclick="actionDeleteMessage()" class="px-4 py-2.5 text-xs text-left text-red-400 hover:bg-red-900/30 flex items-center gap-3">
         <i class="fa-solid fa-trash text-red-500 w-4"></i> Delete
+      </button>
+    </div>
+  </div>
+
+  <!-- Context Menu for Petitions (Emperor Only) -->
+  <div id="pet-context-menu" class="fixed z-[70] hidden bg-obsidian-900 border border-slate-700/80 rounded-xl shadow-2xl msg-context-menu overflow-hidden min-w-[200px]">
+    <div class="flex flex-col py-1">
+      <button onclick="petActionAlter()" class="px-4 py-2.5 text-xs text-left text-cyan-300 hover:bg-slate-800 flex items-center gap-3">
+        <i class="fa-solid fa-rotate-left text-cyan-400 w-4"></i> Alterar Escolha
+      </button>
+      <hr class="border-slate-700/50 my-1">
+      <button onclick="petActionPin()" class="px-4 py-2.5 text-xs text-left text-slate-200 hover:bg-slate-800 flex items-center gap-3">
+        <i class="fa-solid fa-thumbtack text-slate-400 w-4"></i> <span id="pet-action-pin-text">Fixar</span>
+      </button>
+      <button onclick="petActionSilver()" class="px-4 py-2.5 text-xs text-left text-slate-200 hover:bg-slate-800 flex items-center gap-3">
+        <i class="fa-solid fa-medal text-slate-300 w-4"></i> <span id="pet-action-silver-text">Pratear</span>
+      </button>
+      <button onclick="petActionGold()" class="px-4 py-2.5 text-xs text-left text-gold-300 hover:bg-slate-800 flex items-center gap-3">
+        <i class="fa-solid fa-crown text-gold-400 w-4"></i> <span id="pet-action-gold-text">Dourar</span>
+      </button>
+      <hr class="border-slate-700/50 my-1">
+      <button onclick="petActionDelete()" class="px-4 py-2.5 text-xs text-left text-red-400 hover:bg-red-900/30 flex items-center gap-3">
+        <i class="fa-solid fa-trash text-red-500 w-4"></i> Apagar
       </button>
     </div>
   </div>
@@ -293,7 +346,6 @@
             <span>Council Roster</span>
           </button>
 
-          <!-- NEW: Council Archives -->
           <button onclick="switchTab('archives')" id="nav-archives" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-medium uppercase tracking-wider text-slate-300 hover:text-gold-400 hover:bg-slate-800/50 transition-all">
             <i class="fa-solid fa-folder-open text-base w-5 text-center text-amber-500"></i>
             <span>Council Archives</span>
@@ -580,18 +632,22 @@
     let currentTargetSilencingKey = null;
     
     // Chat States
-    let currentReplyTo = null; // { id, user, text }
-    let currentAttachment = null; // { file, name, type }
+    let currentReplyTo = null; 
+    let currentAttachment = null; 
     let contextMenuMsgId = null;
+    
+    // Petition States
+    let contextMenuPetId = null;
+    let contextMenuPetData = null;
 
     // Hierarchy Logic
     const RANKS = { 'Emperor': 5, 'Monarch': 4, 'Alcaide-mor': 3, 'Subalcaide': 2, 'Architect': 1 };
     function getRankLevel(role) { return RANKS[role] || 0; }
 
-    // Cloudinary Config (Reusable)
+    // Cloudinary Config
     const CLOUDINARY_CLOUD_NAME = "w8hxvj2u";
 
-    // Boot: Seed Emperor BK in specific HC Node
+    // Boot: Seed Emperor BK
     async function seedEmperorAccount() {
       try {
         const bkRef = ref(db, 'hc_users/BK');
@@ -609,9 +665,7 @@
           };
           await set(bkRef, ownerData);
         }
-      } catch (err) {
-        console.error("Error seeding Emperor:", err);
-      }
+      } catch (err) { console.error("Error seeding Emperor:", err); }
     }
     seedEmperorAccount();
 
@@ -745,7 +799,6 @@
         
         chatContainer.innerHTML = '';
 
-        // Reset pinned banner defaults
         document.getElementById('pinned-message-container').classList.add('hidden');
         document.getElementById('unpin-btn').classList.add('hidden');
         let pinnedMsg = null;
@@ -760,14 +813,11 @@
         Object.keys(messages).forEach(key => {
           const msg = messages[key];
           
-          if (msg.isPinned) {
-            pinnedMsg = { key, ...msg };
-          }
+          if (msg.isPinned) pinnedMsg = { key, ...msg };
 
           const isSelf = window.currentUser && msg.sender === window.currentUser.username;
           
           const msgEl = document.createElement('div');
-          // Add drag classes/attributes for swipe-to-reply
           msgEl.className = `flex gap-3 max-w-[85%] sm:max-w-xl relative ${isSelf ? 'ml-auto flex-row-reverse' : ''} mt-2 chat-message-container`;
           msgEl.dataset.msgId = key;
           msgEl.dataset.msgUser = msg.sender;
@@ -776,7 +826,6 @@
           let rankBadgeClass = msg.role === 'Emperor' ? 'text-blood-400 font-cinzel text-sm' : 
                                msg.role === 'Monarch' ? 'text-gold-400' : 'text-slate-300';
 
-          // Reply Block HTML
           let replyHTML = '';
           if (msg.replyTo) {
             replyHTML = `
@@ -787,7 +836,6 @@
             `;
           }
 
-          // Attachment Block HTML
           let attachmentHTML = '';
           if (msg.attachmentUrl) {
             if (msg.attachmentType && msg.attachmentType.startsWith('image/')) {
@@ -804,9 +852,10 @@
 
           let textHTML = msg.text ? `<p class="break-words select-text">${escapeHTML(msg.text)}</p>` : '';
 
+          // AQUI: removido "flex-1" do div.space-y-1 e adicionado min-w-[50px] para a bolinha alinhar perfeitamente à largura da mensagem.
           msgEl.innerHTML = `
             <img onclick="showPublicProfile('${msg.sender}')" src="${msg.avatar || 'https://placehold.co/40x40'}" class="w-8 h-8 rounded-full border border-slate-600 object-cover flex-shrink-0 cursor-pointer hover:scale-110 transition-all mt-1">
-            <div class="space-y-1 ${isSelf ? 'text-right' : 'text-left'} max-w-full flex-1 min-w-0">
+            <div class="space-y-1 flex flex-col ${isSelf ? 'items-end text-right' : 'items-start text-left'} max-w-full min-w-[50px]">
               <div class="flex items-center gap-2 ${isSelf ? 'justify-end' : ''}">
                 <span class="text-xs font-bold ${rankBadgeClass}">${msg.sender}</span>
                 <span class="text-[10px] text-slate-500 uppercase">${msg.role}</span>
@@ -823,11 +872,9 @@
             </div>
           `;
 
-          // Attach Context Menu / Long Press Events for Actions (Emperor Only)
           const bubble = msgEl.querySelector('.p-3');
           
           bubble.addEventListener('contextmenu', (e) => handleContextMenu(e, key, msg.isPinned));
-          
           let pressTimer;
           bubble.addEventListener('touchstart', (e) => {
             pressTimer = window.setTimeout(() => handleContextMenu(e, key, msg.isPinned, true), 600);
@@ -838,7 +885,6 @@
           chatContainer.appendChild(msgEl);
         });
 
-        // Set Pinned Message Banner if exists
         if (pinnedMsg) {
           const banner = document.getElementById('pinned-message-container');
           banner.classList.remove('hidden');
@@ -888,14 +934,11 @@
 
       chatContainer.addEventListener('touchmove', (e) => {
         if (!draggingElement) return;
-        
         currentX = e.touches[0].clientX;
         const currentY = e.touches[0].clientY;
-        
         const diffX = currentX - startX;
         const diffY = currentY - startY;
 
-        // Cancel horizontal swipe if user is scrolling vertically
         if (Math.abs(diffY) > Math.abs(diffX) && !isSwiping) {
           resetDrag();
           return;
@@ -904,13 +947,10 @@
         if (Math.abs(diffX) > 10) isSwiping = true;
 
         if (isSwiping) {
-          // Allow drag right to reply
           if (diffX > 0 && diffX < 100) {
             draggingElement.style.transform = `translateX(${diffX}px)`;
             const icon = draggingElement.querySelector('.swipe-reply-icon');
-            if(icon) {
-              icon.style.opacity = Math.min(diffX / 50, 1).toString();
-            }
+            if(icon) icon.style.opacity = Math.min(diffX / 50, 1).toString();
           }
         }
       }, {passive: false});
@@ -920,19 +960,16 @@
         const diffX = currentX - startX;
         
         if (diffX > 60) {
-          // Trigger Reply threshold met
           const id = draggingElement.dataset.msgId;
           const user = draggingElement.dataset.msgUser;
           const text = draggingElement.dataset.msgText;
           setReplyMode(id, user, text);
-          
-          if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
+          if (navigator.vibrate) navigator.vibrate(50);
         }
         resetDrag();
       });
     }
 
-    // --- Message Reply & Attachment State Handlers ---
     window.setReplyMode = function(id, user, text) {
       currentReplyTo = { id, user, text };
       const banner = document.getElementById('reply-banner');
@@ -950,11 +987,9 @@
     window.handleChatAttachment = async function(event) {
       const file = event.target.files[0];
       if (!file) return;
-      
       const banner = document.getElementById('attachment-banner');
       document.getElementById('attachment-name').innerText = file.name;
       banner.classList.remove('hidden');
-      
       currentAttachment = { file, name: file.name, type: file.type };
     };
 
@@ -968,10 +1003,8 @@
       event.preventDefault();
       const input = document.getElementById('chat-input');
       const text = input.value.trim();
-      
       if (!text && !currentAttachment) return;
 
-      // Ensure user is not silenced by a Monarch
       const userRef = ref(db, `hc_users/${window.currentUser.dbKey}`);
       const userSnap = await get(userRef);
       if (userSnap.exists()) {
@@ -983,7 +1016,6 @@
         }
       }
 
-      // Process Attachment
       let uploadedUrl = null;
       if (currentAttachment) {
         showToast('Encrypting & Transmitting file...', 'info');
@@ -1012,41 +1044,30 @@
         input.value = '';
         cancelReply();
         cancelAttachment();
-      } catch (err) {
-        showToast('Failed to transmit message', 'error');
-      }
+      } catch (err) { showToast('Failed to transmit message', 'error'); }
     };
 
-    // --- Message Context Actions (Emperor BK Only) ---
     function handleContextMenu(e, msgId, isPinned, isTouch = false) {
       const isEmperor = window.currentUser && window.currentUser.role === 'Emperor';
-      if (!isEmperor) return; // Only Emperor has delete/pin rights for chat messages
+      if (!isEmperor) return;
 
       e.preventDefault();
       contextMenuMsgId = msgId;
       const menu = document.getElementById('msg-context-menu');
       
       document.getElementById('pin-action-text').innerText = isPinned ? 'Unpin Message' : 'Pin Message';
-      
       menu.classList.remove('hidden');
       
       let x, y;
-      if (isTouch) {
-        x = e.touches[0].clientX;
-        y = e.touches[0].clientY;
-      } else {
-        x = e.pageX;
-        y = e.pageY;
-      }
+      if (isTouch) { x = e.touches[0].clientX; y = e.touches[0].clientY; }
+      else { x = e.pageX; y = e.pageY; }
 
-      // Constrain to viewport
       if (x + 160 > window.innerWidth) x -= 160;
       if (y + 100 > window.innerHeight) y -= 100;
 
       menu.style.left = `${x}px`;
       menu.style.top = `${y}px`;
 
-      // Auto-close menu logic
       const closeMenu = (e) => {
         if(!menu.contains(e.target)) {
           menu.classList.add('hidden');
@@ -1065,25 +1086,20 @@
       try {
         await remove(ref(db, `hc_chats/${contextMenuMsgId}`));
         showToast('Message eradicated by Emperor decree.', 'success');
-      } catch (e) {
-        showToast('Eradication failed.', 'error');
-      }
+      } catch (e) { showToast('Eradication failed.', 'error'); }
       document.getElementById('msg-context-menu').classList.add('hidden');
     };
 
     window.actionPinMessage = async function() {
       if(!contextMenuMsgId) return;
       try {
-        // Unpin any existing pinned messages first
         const chatSnap = await get(ref(db, 'hc_chats'));
         if(chatSnap.exists()) {
            const updates = {};
            Object.keys(chatSnap.val()).forEach(k => {
              if (chatSnap.val()[k].isPinned) updates[`${k}/isPinned`] = false;
            });
-           if(Object.keys(updates).length > 0) {
-             await update(ref(db, 'hc_chats'), updates);
-           }
+           if(Object.keys(updates).length > 0) await update(ref(db, 'hc_chats'), updates);
         }
         
         const targetSnap = await get(ref(db, `hc_chats/${contextMenuMsgId}/isPinned`));
@@ -1110,7 +1126,6 @@
        }
     };
 
-
     function initArchivesListener() {
       const arcRef = ref(db, 'hc_archives');
       onValue(arcRef, (snapshot) => {
@@ -1125,8 +1140,6 @@
         const files = snapshot.val();
         Object.keys(files).forEach(key => {
           const f = files[key];
-          
-          // Emperor can delete ANY file. Owner can delete THEIR file.
           const isEmperor = window.currentUser && window.currentUser.role === 'Emperor';
           const isOwner = window.currentUser && f.owner === window.currentUser.username;
           
@@ -1184,9 +1197,7 @@
       }
 
       const newArc = {
-        name: file.name,
-        type: file.type,
-        url: url,
+        name: file.name, type: file.type, url: url,
         owner: window.currentUser.username,
         timestamp: new Date().toISOString()
       };
@@ -1205,7 +1216,84 @@
       } catch (err) { showToast('Purge failed.', 'error'); }
     };
 
-    // --- Petitions & Decrees Logic ---
+
+    /* --- PETITIONS (DECREES & ORDERS) LOGIC & CONTEXT MENU --- */
+    function handlePetitionContextMenu(e, key, petData, isTouch = false) {
+      const isEmperor = window.currentUser && window.currentUser.role === 'Emperor';
+      if (!isEmperor) return;
+
+      e.preventDefault();
+      contextMenuPetId = key;
+      contextMenuPetData = petData;
+      const menu = document.getElementById('pet-context-menu');
+      
+      document.getElementById('pet-action-pin-text').innerText = petData.isPinned ? 'Desfixar' : 'Fixar';
+      document.getElementById('pet-action-silver-text').innerText = petData.importance === 'silver' ? 'Despratear' : 'Pratear (Muito Importante)';
+      document.getElementById('pet-action-gold-text').innerText = petData.importance === 'gold' ? 'Desdourar' : 'Dourar (Importantíssimo)';
+      
+      menu.classList.remove('hidden');
+      
+      let x, y;
+      if (isTouch) { x = e.touches[0].clientX; y = e.touches[0].clientY; }
+      else { x = e.pageX; y = e.pageY; }
+
+      if (x + 220 > window.innerWidth) x -= 220;
+      if (y + 250 > window.innerHeight) y -= 250;
+
+      menu.style.left = `${x}px`;
+      menu.style.top = `${y}px`;
+
+      const closeMenu = (ev) => {
+        if(!menu.contains(ev.target)) {
+          menu.classList.add('hidden');
+          document.removeEventListener('click', closeMenu);
+          document.removeEventListener('touchstart', closeMenu);
+        }
+      };
+      setTimeout(() => {
+        document.addEventListener('click', closeMenu);
+        document.addEventListener('touchstart', closeMenu, {passive: true});
+      }, 10);
+    }
+
+    window.petActionAlter = async function() {
+       if(!contextMenuPetId) return;
+       await update(ref(db, `hc_requests/${contextMenuPetId}`), { status: 'pending' });
+       showToast('O status da petição foi resetado para pendente.', 'info');
+       document.getElementById('pet-context-menu').classList.add('hidden');
+    };
+
+    window.petActionPin = async function() {
+       if(!contextMenuPetId) return;
+       const isPinned = contextMenuPetData.isPinned;
+       await update(ref(db, `hc_requests/${contextMenuPetId}`), { isPinned: !isPinned });
+       showToast(isPinned ? 'Petição desfixada.' : 'Petição fixada no topo.', 'success');
+       document.getElementById('pet-context-menu').classList.add('hidden');
+    };
+
+    window.petActionSilver = async function() {
+       if(!contextMenuPetId) return;
+       const isSilver = contextMenuPetData.importance === 'silver';
+       await update(ref(db, `hc_requests/${contextMenuPetId}`), { importance: isSilver ? null : 'silver' });
+       showToast(isSilver ? 'Luxo prateado removido.' : 'Petição elevada a Prateada.', 'success');
+       document.getElementById('pet-context-menu').classList.add('hidden');
+    };
+
+    window.petActionGold = async function() {
+       if(!contextMenuPetId) return;
+       const isGold = contextMenuPetData.importance === 'gold';
+       await update(ref(db, `hc_requests/${contextMenuPetId}`), { importance: isGold ? null : 'gold' });
+       showToast(isGold ? 'Luxo dourado removido.' : 'Petição elevada a Dourada (Importantíssima).', 'success');
+       document.getElementById('pet-context-menu').classList.add('hidden');
+    };
+
+    window.petActionDelete = async function() {
+       if(!contextMenuPetId) return;
+       await remove(ref(db, `hc_requests/${contextMenuPetId}`));
+       showToast('Petição aniquilada com sucesso.', 'info');
+       document.getElementById('pet-context-menu').classList.add('hidden');
+    };
+
     function initRequestsListener() {
       const reqRef = ref(db, 'hc_requests');
       onValue(reqRef, (snapshot) => {
@@ -1218,43 +1306,90 @@
         }
 
         const reqs = snapshot.val();
-        const sortedKeys = Object.keys(reqs).sort((a,b) => new Date(reqs[b].timestamp) - new Date(reqs[a].timestamp));
+        
+        // Sorting: Pinned first, then by timestamp (newest)
+        const sortedKeys = Object.keys(reqs).sort((a,b) => {
+          const pinA = reqs[a].isPinned ? 1 : 0;
+          const pinB = reqs[b].isPinned ? 1 : 0;
+          if (pinA !== pinB) return pinB - pinA;
+          return new Date(reqs[b].timestamp) - new Date(reqs[a].timestamp);
+        });
 
         sortedKeys.forEach(key => {
           const req = reqs[key];
           const isEmperor = window.currentUser.role === 'Emperor';
           
           const card = document.createElement('div');
-          card.className = `glass-panel p-5 rounded-xl border ${req.status === 'pending' ? 'border-amber-500/30' : req.status === 'approved' ? 'border-emerald-500/30' : 'border-blood-500/30'} relative`;
 
+          // Status Badge HTML
           let statusBadge = '';
-          if (req.status === 'pending') statusBadge = `<span class="absolute top-4 right-4 text-[10px] uppercase font-bold text-amber-400 bg-amber-900/30 px-2 py-1 rounded-md">Pending</span>`;
-          if (req.status === 'approved') statusBadge = `<span class="absolute top-4 right-4 text-[10px] uppercase font-bold text-emerald-400 bg-emerald-900/30 px-2 py-1 rounded-md">Approved</span>`;
-          if (req.status === 'rejected') statusBadge = `<span class="absolute top-4 right-4 text-[10px] uppercase font-bold text-blood-400 bg-blood-900/30 px-2 py-1 rounded-md">Rejected</span>`;
+          if (req.status === 'pending') statusBadge = `<span class="absolute top-4 right-4 text-[10px] uppercase font-bold text-amber-400 bg-amber-900/40 px-2 py-1 rounded-md z-10 border border-amber-500/30">Pending</span>`;
+          if (req.status === 'approved') statusBadge = `<span class="absolute top-4 right-4 text-[10px] uppercase font-bold text-emerald-400 bg-emerald-900/40 px-2 py-1 rounded-md z-10 border border-emerald-500/30">Approved</span>`;
+          if (req.status === 'rejected') statusBadge = `<span class="absolute top-4 right-4 text-[10px] uppercase font-bold text-blood-400 bg-blood-900/40 px-2 py-1 rounded-md z-10 border border-blood-500/30">Rejected</span>`;
 
+          // Action Buttons HTML
           let actionButtons = '';
           if (isEmperor && req.status === 'pending') {
             actionButtons = `
-              <div class="flex gap-2 mt-4 pt-4 border-t border-slate-800">
+              <div class="flex gap-2 mt-4 pt-4 border-t border-slate-800/60 relative z-10">
                 <button onclick="judgeRequest('${key}', 'approved')" class="flex-1 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase hover:bg-emerald-500/30 transition-all border border-emerald-500/30"><i class="fa-solid fa-check mr-1"></i> Approve</button>
                 <button onclick="judgeRequest('${key}', 'rejected')" class="flex-1 py-1.5 rounded-lg bg-blood-900/40 text-blood-400 text-xs font-bold uppercase hover:bg-blood-500/30 transition-all border border-blood-500/30"><i class="fa-solid fa-xmark mr-1"></i> Reject</button>
               </div>
             `;
           }
 
+          // Luxury Classes & Icons
+          let importanceClass = '';
+          let shimmerClass = '';
+          let luxIcon = '';
+          let plClass = 'p-6';
+          
+          if (req.importance === 'gold') {
+             importanceClass = 'petition-gold border-gold-500/80 text-gold-200';
+             shimmerClass = 'shimmer-effect';
+             luxIcon = `<div class="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-yellow-300 via-gold-500 to-amber-600 shadow-[0_0_10px_#D4AF37]"></div>
+                        <i class="fa-solid fa-crown text-gold-400 absolute top-4 left-4 text-xl filter drop-shadow-[0_0_8px_rgba(212,175,55,0.8)] z-10"></i>`;
+             plClass = 'p-6 pl-12';
+          } else if (req.importance === 'silver') {
+             importanceClass = 'petition-silver border-slate-300/80 text-slate-200';
+             shimmerClass = 'shimmer-effect';
+             luxIcon = `<div class="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-slate-200 via-slate-400 to-slate-600 shadow-[0_0_10px_#C0C0C0]"></div>
+                        <i class="fa-solid fa-medal text-slate-300 absolute top-4 left-4 text-xl filter drop-shadow-[0_0_8px_rgba(192,192,192,0.8)] z-10"></i>`;
+             plClass = 'p-6 pl-12';
+          } else {
+             importanceClass = `border ${req.status === 'pending' ? 'border-amber-500/30' : req.status === 'approved' ? 'border-emerald-500/30' : 'border-blood-500/30'}`;
+          }
+
+          // Pin Icon Handling
+          let pinIcon = req.isPinned ? `<i class="fa-solid fa-thumbtack ${req.importance === 'gold' ? 'text-gold-200' : (req.importance === 'silver' ? 'text-slate-100' : 'text-gold-400')} absolute ${luxIcon ? 'top-12 left-4 text-sm' : 'top-4 left-4 text-lg'} filter drop-shadow-md z-10"></i>` : '';
+          if (req.isPinned && !luxIcon) plClass = 'p-6 pl-12';
+
+          card.className = `glass-panel ${plClass} rounded-2xl petition-card ${importanceClass} ${shimmerClass} relative overflow-hidden group`;
           card.innerHTML = `
+            ${luxIcon}
+            ${pinIcon}
             ${statusBadge}
-            <div class="flex items-center gap-3 mb-3">
-              <img src="${req.avatar || 'https://placehold.co/40x40'}" class="w-8 h-8 rounded-full border border-slate-700">
+            <div class="flex items-center gap-3 mb-3 relative z-10">
+              <img src="${req.avatar || 'https://placehold.co/40x40'}" class="w-8 h-8 rounded-full border border-slate-700 shadow-md">
               <div>
-                <p class="text-xs font-bold text-slate-200">${req.author}</p>
+                <p class="text-xs font-bold ${req.importance === 'gold' ? 'text-gold-300' : 'text-slate-200'}">${req.author}</p>
                 <p class="text-[9px] text-slate-400">${new Date(req.timestamp).toLocaleString()}</p>
               </div>
             </div>
-            <h4 class="text-sm font-bold text-cyan-400 mb-2">${escapeHTML(req.title)}</h4>
-            <p class="text-xs text-slate-300 leading-relaxed">${escapeHTML(req.description)}</p>
+            <h4 class="text-sm font-bold ${req.importance === 'gold' ? 'text-gold-400' : (req.importance === 'silver' ? 'text-slate-100' : 'text-cyan-400')} mb-2 relative z-10">${escapeHTML(req.title)}</h4>
+            <p class="text-xs text-slate-300 leading-relaxed relative z-10">${escapeHTML(req.description)}</p>
             ${actionButtons}
           `;
+
+          // Bind Context Menu Handlers
+          card.addEventListener('contextmenu', (e) => handlePetitionContextMenu(e, key, req));
+          let pressTimer;
+          card.addEventListener('touchstart', (e) => {
+            pressTimer = window.setTimeout(() => handlePetitionContextMenu(e, key, req, true), 600);
+          }, {passive: true});
+          card.addEventListener('touchend', () => clearTimeout(pressTimer));
+          card.addEventListener('touchmove', () => clearTimeout(pressTimer));
+
           grid.appendChild(card);
         });
       });
